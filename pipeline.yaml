@@ -1,0 +1,9 @@
+tasks:
+  - source: scripts/data_processing.py
+    product:
+      nb: products/data_processing.ipynb
+      data: products/processed_data/openpol.pkl
+  - source: scripts/category_clustering.py
+    product:
+      nb: products/category_clustering.ipynb
+      data: products/processed_data/categories.csv
