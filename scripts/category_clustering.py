@@ -29,6 +29,7 @@ product = None
 
 # %%
 # your code here...
+import numpy as np
 import pandas as pd
 import gensim.downloader as gensim_api
 from collections import Counter
@@ -47,7 +48,24 @@ lst_tokens_by_category = clean.groupby('category_number').field_clean.apply(lamb
 # %%
 token_counts_by_category = [pd.DataFrame(sorted(Counter(lst).items(), key=lambda x: x[1], reverse=True))  for lst in lst_tokens_by_category]
 # %%
-def create_dic_clusters(token_counts_by_category, method='greater_than_1pc_of_maxfreq',topn=100):
+category_dict = {
+        1: 'shareholdings',
+        2: 'trusts',
+        3: 'real estate',
+        4: 'directorships',
+        5: 'partnerships',
+        6: 'liabilities',
+        7: 'bonds and debentures',
+        8: 'savings and insvestment accounts',
+        9: 'other assets',
+        10: 'other income',
+        11: 'gifts',
+        12: 'travel and hospitality',
+        13: 'memberships/office holder or donor',
+        14: 'other interests'
+    }
+
+def create_category_words_dic(token_counts_by_category, method='greater_than_1pc_of_maxfreq',topn=100):
     '''
     '''
     assert method in ['greater_than_1pc_of_maxfreq', 'topn_most_freq']
@@ -58,18 +76,24 @@ def create_dic_clusters(token_counts_by_category, method='greater_than_1pc_of_ma
     categories = category_dict.values()
     return {c: topn_words_by_category[i] for i,c in enumerate(categories)}
 
-dic_clusters = create_dic_clusters(token_counts_by_category, method='topn_most_freq', topn=10)
+dic_category_words = create_category_words_dic(token_counts_by_category, method='topn_most_freq', topn=50)
 
 # %%
-## word embedding
+## create average embedding vectors
 nlp = gensim_api.load("glove-twitter-200")
-tot_words = [word for lst in dic_clusters.values() for word in lst]
+average_word_vecs_by_category = [np.mean(np.array([nlp[word] for word in cat]),axis=0) for cat in dic_category_words.values()]
+
+# %%
+similar_words_by_category = [[tup[0] for tup in nlp.most_similar(vec, topn=30)] for vec in average_word_vecs_by_category]
+# %%
+tot_words = [word for lst in similar_words_by_category for word in lst]
 X = nlp[tot_words]
 # %%
 ## pca
 pca = manifold.TSNE(perplexity=40, n_components=2, init='pca')
 X = pca.fit_transform(X)
 # %%
+dic_clusters = {c:similar_words_by_category[i] for i,c in enumerate(category_dict.values())}
 ## create dtf
 dtf = pd.DataFrame()
 for k,v in dic_clusters.items():
@@ -91,3 +115,5 @@ for i in range(len(dtf)):
                xytext=(5,2), textcoords='offset points', 
                ha='right', va='bottom')
 # %%
+# dummy file to build task successfully
+!touch ../products/processed_data/categories.csv
